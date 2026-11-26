@@ -318,6 +318,19 @@ async function loadHistory(){
   }catch(err){fail(err)}
 }
 
+function normalizeReportRows(response){
+  // Accepte une liste directe ou une liste enveloppée par l'API.
+  if(Array.isArray(response)) return response;
+  if(response && typeof response==='object'){
+    if(response.error || response.success===false) throw new Error(response.error||'Erreur retournée par le serveur.');
+    for(const key of ['rows','data','records','items','result','reportRows']){
+      if(Array.isArray(response[key])) return response[key];
+    }
+    if(Object.keys(response).length===0) return [];
+  }
+  throw new Error('Format de réponse Reporting invalide : le serveur n’a pas renvoyé une liste de pointages.');
+}
+
 async function loadReport(){
   const filters={
     dateFrom:document.getElementById('reportStart').value,
@@ -329,9 +342,12 @@ async function loadReport(){
   if(filters.dateFrom && filters.dateTo && filters.dateFrom>filters.dateTo){toast('La date de début doit précéder la date de fin.',true);return}
   const info=document.getElementById('reportInfo');info.textContent='Génération du rapport en cours...';
   try{
-    reportRows=await apiRequest('getReportData',filters);
+    const response=await apiRequest('getReportData',filters);
+    reportRows=normalizeReportRows(response).map(r=>Array.isArray(r)?({
+      date:r[0],matricule:r[1],nomPrenom:r[2],fonction:r[3],aeroport:r[4],division:r[5],statut:r[6]
+    }):r);
     const counts={OK:0,ABS:0,IMP:0};
-    reportRows.forEach(r=>{if(counts[r.statut]!==undefined)counts[r.statut]++});
+    reportRows.forEach(r=>{const status=String(r.statut||'').toUpperCase();if(counts[status]!==undefined)counts[status]++});
     document.getElementById('repTotal').textContent=reportRows.length;
     document.getElementById('repOK').textContent=counts.OK;
     document.getElementById('repABS').textContent=counts.ABS;
@@ -339,7 +355,7 @@ async function loadReport(){
     const body=document.getElementById('reportBody');
     body.innerHTML=reportRows.length?reportRows.map(r=>`<tr><td>${esc(r.date)}</td><td><strong>${esc(r.matricule)}</strong></td><td>${esc(r.nomPrenom)}</td><td>${esc(r.fonction)}</td><td>${esc(r.aeroport)}</td><td>${esc(r.division)}</td><td><span class="pill pill-${esc(r.statut)}">${esc(r.statut)}</span></td></tr>`).join(''):'<tr><td colspan="7" class="empty">Aucun pointage pour ces critères.</td></tr>' ;
     info.textContent=`${reportRows.length} enregistrement(s) trouvé(s). Période : ${filters.dateFrom||'—'} au ${filters.dateTo||'—'}.`;
-  }catch(err){info.textContent='Erreur lors de la génération du rapport.';fail(err)}
+  }catch(err){reportRows=[];info.textContent='Erreur lors de la génération du rapport.';fail(err)}
 }
 
 function exportReportExcel(){
