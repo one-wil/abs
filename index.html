@@ -27,6 +27,31 @@
     .save-row{display:flex;gap:10px;margin-top:20px}.save-row .btn-primary{flex:1}.hint{font-size:10px;color:#9aa3b1;line-height:1.6;margin-top:13px}.side-panel .panel-body{padding:18px}.quick-line{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid #eef1f5;font-size:12px}.quick-line:last-child{border:0}.quick-line span{color:var(--muted)}.quick-line b{color:var(--navy);font:800 13px Manrope}.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:17px}.legend span{font-size:10px;color:#748094;display:flex;align-items:center;gap:6px}.dot{width:7px;height:7px;border-radius:50%}.history{margin-top:20px}.toolbar{display:flex;gap:8px;align-items:center}.toolbar input{width:180px;padding:9px 11px;font-size:11px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:760px}th{text-align:left;padding:12px 15px;background:#fafbfd;color:#8b95a4;font-size:9px;letter-spacing:1px;text-transform:uppercase;font-weight:800}td{padding:13px 15px;border-top:1px solid #f0f2f5;font-size:11px;color:#47546a}td strong{color:#1d2b43}.pill{display:inline-block;padding:5px 9px;border-radius:20px;font-size:9px;font-weight:800}.pill-OK{background:#e9f7f0;color:var(--green)}.pill-ABS{background:#fff0f0;color:var(--red)}.pill-IMP{background:#fff7e5;color:var(--amber)}.empty{text-align:center;padding:35px;color:#9aa3b1;font-size:12px}
     .toast{position:fixed;right:25px;bottom:25px;background:#172744;color:#fff;padding:14px 18px;border-radius:12px;box-shadow:var(--shadow);font-size:12px;display:none;z-index:20;max-width:360px}.toast.show{display:block;animation:rise .2s ease}.toast.error{background:#9e3540}.loading{opacity:.55;pointer-events:none}.section{display:none}.section.active{display:block}
 
+    .preview-modal{display:none;position:fixed;inset:0;z-index:9999;background:rgba(10,18,34,.78);padding:14px;overflow:auto}
+    .preview-modal.open{display:block}
+    .preview-shell{max-width:1100px;margin:0 auto;background:#eef1f5;border-radius:16px;overflow:hidden;box-shadow:0 20px 70px rgba(0,0,0,.3)}
+    .preview-toolbar{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;background:#14233f;color:#fff}
+    .preview-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .preview-content{padding:18px;overflow:auto;background:#fff}
+    .preview-content .print-head{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #172744;padding:0 0 12px;margin-bottom:16px}
+    .preview-content .print-brand{display:flex;align-items:center;gap:12px}
+    .preview-content .print-mark{width:48px;height:48px;border:2px solid #c6a66b;border-radius:12px;display:grid;place-items:center;color:#9a7944;font-weight:800;font-size:20px}
+    .preview-content .print-title{font-size:19px;font-weight:800;color:#172744}
+    .preview-content .print-subtitle{font-size:10px;color:#758095;margin-top:4px;letter-spacing:1.2px;text-transform:uppercase}
+    .preview-content .print-meta{text-align:right;font-size:10px;line-height:1.7;color:#586477}
+    .preview-content .print-report-title{font-size:17px;font-weight:800;margin:14px 0 5px;color:#172744}
+    .preview-content .print-period,.preview-content .print-filters{font-size:11px;color:#586477;margin-bottom:12px}
+    .preview-content .print-stats{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:9px;margin:12px 0 16px}
+    .preview-content .print-stat{border:1px solid #dce2ea;border-radius:7px;padding:9px 11px;background:#fff}
+    .preview-content .print-stat span{display:block;font-size:9px;color:#758095;text-transform:uppercase;font-weight:700}
+    .preview-content .print-stat strong{display:block;font-size:18px;margin-top:5px;color:#172744}
+    .preview-content .print-table{width:100%;border-collapse:collapse;font-size:10px;background:#fff}
+    .preview-content .print-table th{background:#172744;color:#fff;padding:8px 7px;text-align:left;font-size:9px}
+    .preview-content .print-table td{padding:7px;border:1px solid #dfe4eb;font-size:10px;color:#26344b}
+    .preview-content .print-signatures{display:grid;grid-template-columns:repeat(3,1fr);gap:25px;margin-top:28px}
+    .preview-content .print-signature{border-top:1px solid #8b95a4;padding-top:7px;text-align:center;font-size:10px;color:#586477;min-height:45px}
+    .preview-content .print-footer{border-top:1px solid #dfe4eb;margin-top:18px;padding-top:7px;display:flex;justify-content:space-between;font-size:9px;color:#8993a2}
+    @media(max-width:700px){.preview-modal{padding:0}.preview-shell{border-radius:0}.preview-toolbar{align-items:flex-start;flex-direction:column}.preview-content{padding:10px}.preview-content .print-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.preview-content .print-table{min-width:850px}}
     #printArea{display:none}
     @media print{
       @page{size:A4 landscape;margin:12mm}
@@ -153,7 +178,7 @@
 
     <section class="section" id="reporting">
       <div class="panel history">
-        <div class="panel-head"><div><h3>Reporting & Export Excel</h3><p>Analysez les pointages sur une période et exportez les résultats</p></div><div class="toolbar"><button class="btn btn-light" onclick="printReport()">Imprimer le rapport</button><button class="btn btn-gold" onclick="exportReportExcel()">⇩ Exporter en Excel</button></div></div>
+        <div class="panel-head"><div><h3>Reporting & Export Excel</h3><p>Analysez les pointages sur une période et exportez les résultats</p></div><div class="toolbar"><button class="btn btn-light" onclick="printReport(true)">Aperçu avant imprimer</button><button class="btn btn-light" onclick="printReport()">Imprimer le rapport</button><button class="btn btn-gold" onclick="exportReportExcel()">⇩ Exporter en Excel</button></div></div>
         <div class="panel-body">
           <div class="form-row">
             <div class="field"><label for="reportStart">DATE DE DÉBUT</label><input type="date" id="reportStart"></div>
@@ -179,6 +204,18 @@
       </div>
     </section>
   </main>
+</div>
+<div id="previewModal" class="preview-modal" aria-hidden="true">
+  <div class="preview-shell">
+    <div class="preview-toolbar">
+      <strong>Aperçu avant imprimer</strong>
+      <div class="preview-actions">
+        <button type="button" class="btn btn-gold" onclick="printReport()">Imprimer</button>
+        <button type="button" class="btn btn-light" onclick="closeReportPreview()">Fermer</button>
+      </div>
+    </div>
+    <div id="previewContent" class="preview-content"></div>
+  </div>
 </div>
 <div id="printArea" aria-hidden="true"></div>
 <div class="toast" id="toast"></div>
@@ -391,7 +428,7 @@ async function loadReport(){
 }
 
 
-function printReport(){
+function printReport(previewOnly=false){
   if(!reportRows.length){
     toast('Aucun résultat à imprimer. Générez d’abord le rapport.',true);
     return;
@@ -450,8 +487,24 @@ function printReport(){
     </div>
     <div class="print-footer"><span>Gestion de Présence & Absences — Document généré automatiquement</span><span>Developer: BENAKRAB Ahcene</span></div>`;
   area.setAttribute('aria-hidden','false');
+  if(previewOnly){
+    document.getElementById('previewContent').innerHTML=area.innerHTML;
+    const modal=document.getElementById('previewModal');
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden','false');
+    document.body.style.overflow='hidden';
+    return;
+  }
+  closeReportPreview();
   window.print();
   area.setAttribute('aria-hidden','true');
+}
+function closeReportPreview(){
+  const modal=document.getElementById('previewModal');
+  if(!modal)return;
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden','true');
+  document.body.style.overflow='';
 }
 
 function exportReportExcel(){
