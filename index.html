@@ -41,6 +41,7 @@
         <button class="active" data-section="dashboard"><span class="ico">▦</span><span>Tableau de bord</span></button>
         <button data-section="saisie"><span class="ico">＋</span><span>Saisie journalière</span></button>
         <button data-section="historique"><span class="ico">◷</span><span>Historique</span></button>
+        <button data-section="reporting"><span class="ico">▤</span><span>Reporting & Export</span></button>
       </nav>
     </div>
     <div class="side-foot">SYSTÈME DE GESTION RH<br>Version 1.0 · Google Sheets</div>
@@ -118,9 +119,38 @@
         <div class="table-wrap"><table><thead><tr><th>Date</th><th>Matricule</th><th>Nom et Prénom</th><th>Fonction</th><th>Aéroport</th><th>Division</th><th>Statut</th></tr></thead><tbody id="historyBody"><tr><td colspan="7" class="empty">Chargement des données...</td></tr></tbody></table></div>
       </div>
     </section>
+
+    <section class="section" id="reporting">
+      <div class="panel history">
+        <div class="panel-head"><div><h3>Reporting & Export Excel</h3><p>Analysez les pointages sur une période et exportez les résultats</p></div><button class="btn btn-gold" onclick="exportReportExcel()">⇩ Exporter en Excel</button></div>
+        <div class="panel-body">
+          <div class="form-row">
+            <div class="field"><label for="reportStart">DATE DE DÉBUT</label><input type="date" id="reportStart"></div>
+            <div class="field"><label for="reportEnd">DATE DE FIN</label><input type="date" id="reportEnd"></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label for="reportDivision">DIVISION</label><input id="reportDivision" placeholder="Toutes les divisions"></div>
+            <div class="field"><label for="reportAirport">AÉROPORT</label><input id="reportAirport" placeholder="Tous les aéroports"></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label for="reportStatus">STATUT</label><select id="reportStatus"><option value="">Tous les statuts</option><option value="OK">OK — Présent</option><option value="ABS">ABS — Absent</option><option value="IMP">IMP — Imprévu</option></select></div>
+            <div class="field" style="display:flex;align-items:end"><button class="btn btn-primary" style="width:100%" onclick="loadReport()">Générer le rapport</button></div>
+          </div>
+          <div class="stats" style="margin:8px 0 18px">
+            <div class="stat"><div class="stat-head">TOTAL POINTAGES</div><strong id="repTotal">0</strong></div>
+            <div class="stat"><div class="stat-head">PRÉSENTS (OK)</div><strong id="repOK">0</strong></div>
+            <div class="stat"><div class="stat-head">ABSENTS (ABS)</div><strong id="repABS">0</strong></div>
+            <div class="stat"><div class="stat-head">IMPRÉVUS (IMP)</div><strong id="repIMP">0</strong></div>
+          </div>
+          <p class="hint" id="reportInfo">Choisissez une période puis cliquez sur « Générer le rapport ».</p>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>Date</th><th>Matricule</th><th>Nom et Prénom</th><th>Fonction</th><th>Aéroport</th><th>Division</th><th>Statut</th></tr></thead><tbody id="reportBody"><tr><td colspan="7" class="empty">Aucun rapport généré.</td></tr></tbody></table></div>
+      </div>
+    </section>
   </main>
 </div>
 <div class="toast" id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 /*
  * URL de l'application Web Google Apps Script (/exec).
@@ -131,12 +161,15 @@ const API_URL = "https://script.google.com/macros/s/AKfycbxchOgZJoc4DcH7muA6Hr3_
 let employees = [];
 let selectedEmployee = null;
 let jsonpCounter = 0;
+let reportRows = [];
 const today = new Date();
 const isoToday = new Date(today.getTime()-today.getTimezoneOffset()*60000).toISOString().slice(0,10);
 
 document.getElementById('attendanceDate').value=isoToday;
 document.getElementById('dashboardDate').value=isoToday;
 document.getElementById('historyDate').value=isoToday;
+document.getElementById('reportStart').value=isoToday.slice(0,8)+'01';
+document.getElementById('reportEnd').value=isoToday;
 document.getElementById('todayLabel').textContent=today.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
 document.getElementById('welcomeDate').textContent=today.toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
 
@@ -150,8 +183,9 @@ function fail(err){toast(err&&err.message?err.message:String(err),true)}
 function showSection(id){
   document.querySelectorAll('.section').forEach(s=>s.classList.toggle('active',s.id===id));
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.section===id));
-  document.getElementById('pageTitle').textContent=({dashboard:'Tableau de bord',saisie:'Saisie journalière',historique:'Historique des pointages'})[id];
+  document.getElementById('pageTitle').textContent=({dashboard:'Tableau de bord',saisie:'Saisie journalière',historique:'Historique des pointages',reporting:'Reporting & Export'})[id];
   if(id==='historique')loadHistory();
+  if(id==='reporting')loadReport();
 }
 document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>showSection(b.dataset.section)));
 
@@ -283,6 +317,47 @@ async function loadHistory(){
     body.innerHTML=rows.map(r=>`<tr><td>${esc(r.date)}</td><td><strong>${esc(r.matricule)}</strong></td><td>${esc(r.nomPrenom)}</td><td>${esc(r.fonction)}</td><td>${esc(r.aeroport)}</td><td>${esc(r.division)}</td><td><span class="pill pill-${esc(r.statut)}">${esc(r.statut)}</span></td></tr>`).join('');
   }catch(err){fail(err)}
 }
+
+async function loadReport(){
+  const filters={
+    dateFrom:document.getElementById('reportStart').value,
+    dateTo:document.getElementById('reportEnd').value,
+    division:document.getElementById('reportDivision').value.trim(),
+    aeroport:document.getElementById('reportAirport').value.trim(),
+    statut:document.getElementById('reportStatus').value
+  };
+  if(filters.dateFrom && filters.dateTo && filters.dateFrom>filters.dateTo){toast('La date de début doit précéder la date de fin.',true);return}
+  const info=document.getElementById('reportInfo');info.textContent='Génération du rapport en cours...';
+  try{
+    reportRows=await apiRequest('getReportData',filters);
+    const counts={OK:0,ABS:0,IMP:0};
+    reportRows.forEach(r=>{if(counts[r.statut]!==undefined)counts[r.statut]++});
+    document.getElementById('repTotal').textContent=reportRows.length;
+    document.getElementById('repOK').textContent=counts.OK;
+    document.getElementById('repABS').textContent=counts.ABS;
+    document.getElementById('repIMP').textContent=counts.IMP;
+    const body=document.getElementById('reportBody');
+    body.innerHTML=reportRows.length?reportRows.map(r=>`<tr><td>${esc(r.date)}</td><td><strong>${esc(r.matricule)}</strong></td><td>${esc(r.nomPrenom)}</td><td>${esc(r.fonction)}</td><td>${esc(r.aeroport)}</td><td>${esc(r.division)}</td><td><span class="pill pill-${esc(r.statut)}">${esc(r.statut)}</span></td></tr>`).join(''):'<tr><td colspan="7" class="empty">Aucun pointage pour ces critères.</td></tr>' ;
+    info.textContent=`${reportRows.length} enregistrement(s) trouvé(s). Période : ${filters.dateFrom||'—'} au ${filters.dateTo||'—'}.`;
+  }catch(err){info.textContent='Erreur lors de la génération du rapport.';fail(err)}
+}
+
+function exportReportExcel(){
+  if(!reportRows.length){toast('Aucune donnée à exporter. Générez d’abord un rapport.',true);return}
+  if(typeof XLSX==='undefined'){toast('Le module Excel ne s’est pas chargé. Vérifiez votre connexion Internet.',true);return}
+  const data=reportRows.map(r=>({
+    'Date':r.date,'Matricule':r.matricule,'Nom et Prénom':r.nomPrenom,
+    'Fonction':r.fonction,'Aéroport':r.aeroport,'Division':r.division,'Statut':r.statut
+  }));
+  const ws=XLSX.utils.json_to_sheet(data);
+  ws['!cols']=[{wch:14},{wch:16},{wch:28},{wch:22},{wch:20},{wch:20},{wch:12}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Reporting');
+  const from=document.getElementById('reportStart').value||'Toutes';
+  const to=document.getElementById('reportEnd').value||'Dates';
+  XLSX.writeFile(wb,`Reporting_Pointages_${from}_${to}.xlsx`);
+  toast('Fichier Excel exporté.');
+}
+
 function esc(v){
   return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
