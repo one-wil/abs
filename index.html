@@ -71,10 +71,10 @@
     @media(max-width:700px){.preview-modal{padding:0}.preview-shell{border-radius:0}.preview-toolbar{align-items:flex-start;flex-direction:column}.preview-content{padding:10px}.preview-content .print-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.preview-content .print-table{min-width:850px}}
     #printArea{display:none}
     @media print{
-      @page{size:A4 landscape;margin:0}
+      @page{size:A4 portrait;margin:0}
       body{background:#fff!important;color:#172033!important;font-family:Arial,sans-serif!important}
       body>*:not(#printArea){display:none!important}
-      #printArea{display:block!important;color:#172033!important;box-sizing:border-box!important;width:100%!important;padding:0 10mm 18mm!important;margin:0!important}
+      #printArea{display:block!important;color:#172033!important;box-sizing:border-box!important;width:100%!important;padding:0 10mm 20mm!important;margin:0!important}
       .print-head{display:flex;justify-content:space-between;align-items:center;width:100%;border-bottom:3px solid #172744;padding:5mm 0 3mm;margin:0 0 30mm!important;break-inside:avoid;page-break-inside:avoid}
       .print-institution{display:flex;align-items:flex-start;gap:18px}
       .sonatrach-brand{width:88px;min-width:88px;text-align:center}
@@ -93,9 +93,9 @@
       .print-stat{border:1px solid #dce2ea;border-radius:7px;padding:9px 11px}
       .print-stat span{display:block;font-size:9px;color:#758095;text-transform:uppercase;font-weight:700}
       .print-stat strong{display:block;font-size:18px;margin-top:5px;color:#172744}
-      .print-table{width:100%;border-collapse:collapse;min-width:0!important;font-size:9px}
-      .print-table th{background:#172744!important;color:#fff!important;padding:8px 7px;text-align:left;font-size:8px;letter-spacing:.5px}
-      .print-table td{padding:7px;border:1px solid #dfe4eb;font-size:9px;color:#26344b}
+      .print-table{width:100%;table-layout:fixed;border-collapse:collapse;min-width:0!important;font-size:9px;border:1.5px solid #172033}
+      .print-table th{background:#172744!important;color:#fff!important;padding:7px 4px;text-align:left;font-size:8px;font-weight:900;letter-spacing:.2px;border:1.5px solid #172033}
+      .print-table td{padding:6px 4px;border:1.5px solid #303846;font-size:8.5px;font-weight:700;color:#172033;overflow-wrap:anywhere}
       .print-table{page-break-inside:auto;break-inside:auto}
       .print-table thead{display:table-header-group}
       .print-table tfoot{display:table-footer-group}
@@ -105,7 +105,7 @@
       .print-status{font-weight:800}
       .print-signatures{display:grid;grid-template-columns:1fr 1fr 1fr;gap:25px;margin-top:28px;break-inside:avoid}
       .print-signature{border-top:1px solid #8b95a4;padding-top:7px;text-align:center;font-size:9px;color:#586477;min-height:45px}
-      .print-footer{position:fixed;left:0;right:0;bottom:0;width:100%;border-top:1px solid #dfe4eb;margin:0;padding:6px 10mm 5px;display:flex;justify-content:space-between;font-size:8px;color:#8993a2;background:#fff}
+      .print-footer{position:fixed;left:0;right:0;bottom:0;width:100%;border-top:2px solid #172744;margin:0;padding:6px 10mm 5px;display:flex;justify-content:space-between;font-size:8px;font-weight:700;color:#303846;background:#fff}
       .print-empty{padding:18px;text-align:center;border:1px solid #dfe4eb;color:#758095}
     }
 
