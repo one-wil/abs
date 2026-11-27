@@ -75,6 +75,8 @@
       body{background:#fff!important;color:#172033!important;font-family:Arial,sans-serif!important}
       body>*:not(#printArea){display:none!important}
       #printArea{display:block!important;color:#172033!important;box-sizing:border-box!important;width:100%!important;padding:0 10mm 20mm!important;margin:0!important}
+      /* Impression : toute la typographie du document en gras */
+      #printArea, #printArea *{font-weight:700!important}
       .print-head{display:flex;justify-content:space-between;align-items:center;width:100%;border-bottom:3px solid #172744;padding:5mm 0 3mm;margin:0 0 30mm!important;break-inside:avoid;page-break-inside:avoid}
       .print-institution{display:flex;align-items:flex-start;gap:18px}
       .sonatrach-brand{width:88px;min-width:88px;text-align:center}
@@ -581,8 +583,8 @@ function printReport(previewOnly=false){
       </div>
       <div class="print-meta"><strong>GESTION DE PRÉSENCE & ABSENCES</strong><br>DOCUMENT DE SYNTHÈSE<br>Édité le : ${esc(now)}</div>
     </div>
-    <div class="print-report-title">ÉTAT DES POINTAGES</div>
-    <div class="print-period">Période du <strong>${esc(dateLabel(from))}</strong> au <strong>${esc(dateLabel(to))}</strong></div>
+    <div class="print-report-title">LISTE DES RENTRANTS</div>
+    <div class="print-period">Journée du <strong>${esc(dateLabel(from))}</strong></div>
     <div class="print-filters"><strong>Filtres appliqués :</strong> Division : ${esc(division)} &nbsp; | &nbsp; Aéroport : ${esc(airport)} &nbsp; | &nbsp; Statut : ${esc(status)}</div>
     <div class="print-stats">
       <div class="print-stat"><span>Total des pointages</span><strong>${reportRows.length}</strong></div>
