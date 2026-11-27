@@ -71,11 +71,11 @@
     @media(max-width:700px){.preview-modal{padding:0}.preview-shell{border-radius:0}.preview-toolbar{align-items:flex-start;flex-direction:column}.preview-content{padding:10px}.preview-content .print-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.preview-content .print-table{min-width:850px}}
     #printArea{display:none}
     @media print{
-      @page{size:A4 landscape;margin:12mm 12mm 22mm}
+      @page{size:A4 landscape;margin:20mm 12mm 20mm}
       body{background:#fff!important;color:#172033!important;font-family:Arial,sans-serif!important}
       body>*:not(#printArea){display:none!important}
       #printArea{display:block!important;color:#172033!important}
-      .print-head{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #172744;padding:0 0 12px;margin-top:0;margin-bottom:50mm}
+      .print-head{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #172744;padding:0 0 12px;margin-top:0;margin-bottom:50mm;break-inside:avoid}
       .print-institution{display:flex;align-items:flex-start;gap:18px}
       .sonatrach-brand{width:88px;min-width:88px;text-align:center}
       .sonatrach-logo-img{display:block;width:82px;height:auto;max-height:112px;object-fit:contain;margin:0 auto}
@@ -96,7 +96,12 @@
       .print-table{width:100%;border-collapse:collapse;min-width:0!important;font-size:9px}
       .print-table th{background:#172744!important;color:#fff!important;padding:8px 7px;text-align:left;font-size:8px;letter-spacing:.5px}
       .print-table td{padding:7px;border:1px solid #dfe4eb;font-size:9px;color:#26344b}
-      .print-table tr{break-inside:avoid}
+      .print-table{page-break-inside:auto;break-inside:auto}
+      .print-table thead{display:table-header-group}
+      .print-table tfoot{display:table-footer-group}
+      .print-table tr{break-inside:avoid;page-break-inside:avoid}
+      .print-signatures{break-inside:avoid;page-break-inside:avoid}
+      .print-footer{z-index:10}
       .print-status{font-weight:800}
       .print-signatures{display:grid;grid-template-columns:1fr 1fr 1fr;gap:25px;margin-top:28px;break-inside:avoid}
       .print-signature{border-top:1px solid #8b95a4;padding-top:7px;text-align:center;font-size:9px;color:#586477;min-height:45px}
@@ -191,7 +196,7 @@
       <div class="panel history">
         <div class="panel-head"><div><h3>Historique des pointages</h3><p>Consultez les enregistrements et filtrez les résultats</p></div><div class="toolbar"><input type="date" id="historyDate"><button class="btn btn-light" onclick="loadHistory()">Filtrer</button></div></div>
         <div class="panel-body" style="padding:14px 18px"><div class="toolbar" style="margin-bottom:12px"><input id="historySearch" placeholder="Matricule, nom, aéroport..." oninput="loadHistory()"><select id="historyStatus" style="width:125px" onchange="loadHistory()"><option value="">Tous les statuts</option><option>OK</option><option>IMP</option></select><input id="historyDivision" placeholder="Division" oninput="loadHistory()"></div></div>
-        <div class="table-wrap"><table><thead><tr><th>Date</th><th>Matricule</th><th>Nom et Prénom</th><th>Fonction</th><th>Aéroport</th><th>Division</th><th>Statut</th><th>Actions</th></tr></thead><tbody id="historyBody"><tr><td colspan="8" class="empty">Chargement des données...</td></tr></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>N°</th><th>Date</th><th>Matricule</th><th>Nom et Prénom</th><th>Fonction</th><th>Aéroport</th><th>Division</th><th>Statut</th><th>Actions</th></tr></thead><tbody id="historyBody"><tr><td colspan="8" class="empty">Chargement des données...</td></tr></tbody></table></div>
       </div>
     </section>
 
@@ -218,7 +223,7 @@
           </div>
           <p class="hint" id="reportInfo">Choisissez une période puis cliquez sur « Générer le rapport ».</p>
         </div>
-        <div class="table-wrap"><table><thead><tr><th>Date</th><th>Matricule</th><th>Nom et Prénom</th><th>Fonction</th><th>Aéroport</th><th>Division</th><th>Statut</th></tr></thead><tbody id="reportBody"><tr><td colspan="7" class="empty">Aucun rapport généré.</td></tr></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>N°</th><th>Date</th><th>Matricule</th><th>Nom et Prénom</th><th>Fonction</th><th>Aéroport</th><th>Division</th><th>Statut</th></tr></thead><tbody id="reportBody"><tr><td colspan="8" class="empty">Aucun rapport généré.</td></tr></tbody></table></div>
       </div>
     </section>
   </main>
@@ -416,10 +421,10 @@ async function loadHistory(){
     const rows=(Array.isArray(responseRows)?responseRows:[]).filter(r=>String(r.statut||'').toUpperCase()!=='ABS');
     const body=document.getElementById('historyBody');
     if(!Array.isArray(rows) || !rows.length){
-      body.innerHTML='<tr><td colspan="8" class="empty">Aucun pointage correspondant aux critères.</td></tr>';
+      body.innerHTML='<tr><td colspan="9" class="empty">Aucun pointage correspondant aux critères.</td></tr>';
       return;
     }
-    body.innerHTML=rows.map(r=>{
+    body.innerHTML=rows.map((r,index)=>{
       const canEdit=!!r.modifiable && r.date===isoToday;
       const actions=canEdit
         ? `<div class="row-actions">
@@ -427,7 +432,7 @@ async function loadHistory(){
              <button class="btn btn-mini btn-delete" data-action="delete" data-date="${esc(r.date)}" data-matricule="${esc(r.matricule)}" data-name="${esc(r.nomPrenom)}">Supprimer</button>
            </div>`
         : '<span class="readonly-label">Lecture seule</span>';
-      return `<tr><td>${esc(r.date)}</td><td><strong>${esc(r.matricule)}</strong></td>
+      return `<tr><td>${index+1}</td><td>${esc(r.date)}</td><td><strong>${esc(r.matricule)}</strong></td>
         <td>${esc(r.nomPrenom)}</td><td>${esc(r.fonction)}</td><td>${esc(r.aeroport)}</td>
         <td>${esc(r.division)}</td><td><span class="pill pill-${esc(r.statut)}">${esc(r.statut)}</span></td>
         <td>${actions}</td></tr>`;
@@ -526,7 +531,7 @@ async function loadReport(){
     document.getElementById('repOK').textContent=counts.OK;
     document.getElementById('repIMP').textContent=counts.IMP;
     const body=document.getElementById('reportBody');
-    body.innerHTML=reportRows.length?reportRows.map(r=>`<tr><td>${esc(r.date)}</td><td><strong>${esc(r.matricule)}</strong></td><td>${esc(r.nomPrenom)}</td><td>${esc(r.fonction)}</td><td>${esc(r.aeroport)}</td><td>${esc(r.division)}</td><td><span class="pill pill-${esc(r.statut)}">${esc(r.statut)}</span></td></tr>`).join(''):'<tr><td colspan="7" class="empty">Aucun pointage pour ces critères.</td></tr>' ;
+    body.innerHTML=reportRows.length?reportRows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.date)}</td><td><strong>${esc(r.matricule)}</strong></td><td>${esc(r.nomPrenom)}</td><td>${esc(r.fonction)}</td><td>${esc(r.aeroport)}</td><td>${esc(r.division)}</td><td><span class="pill pill-${esc(r.statut)}">${esc(r.statut)}</span></td></tr>`).join(''):'<tr><td colspan="8" class="empty">Aucun pointage pour ces critères.</td></tr>' ;
     info.textContent=`${reportRows.length} enregistrement(s) trouvé(s). Période : ${filters.dateFrom||'—'} au ${filters.dateTo||'—'}.`;
   }catch(err){reportRows=[];info.textContent='Erreur lors de la génération du rapport.';fail(err)}
 }
