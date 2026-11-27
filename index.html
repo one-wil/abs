@@ -59,11 +59,11 @@
     @media(max-width:700px){.preview-modal{padding:0}.preview-shell{border-radius:0}.preview-toolbar{align-items:flex-start;flex-direction:column}.preview-content{padding:10px}.preview-content .print-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.preview-content .print-table{min-width:850px}}
     #printArea{display:none}
     @media print{
-      @page{size:A4 landscape;margin:12mm}
+      @page{size:A4 landscape;margin:12mm 12mm 22mm}
       body{background:#fff!important;color:#172033!important;font-family:Arial,sans-serif!important}
       body>*:not(#printArea){display:none!important}
       #printArea{display:block!important;color:#172033!important}
-      .print-head{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #172744;padding:0 0 12px;margin-bottom:16px}
+      .print-head{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #172744;padding:0 0 12px;margin-top:0;margin-bottom:50mm}
       .print-institution{display:flex;align-items:flex-start;gap:18px}
       .sonatrach-brand{width:88px;min-width:88px;text-align:center}
       .sonatrach-logo-img{display:block;width:82px;height:auto;max-height:112px;object-fit:contain;margin:0 auto}
@@ -88,7 +88,7 @@
       .print-status{font-weight:800}
       .print-signatures{display:grid;grid-template-columns:1fr 1fr 1fr;gap:25px;margin-top:28px;break-inside:avoid}
       .print-signature{border-top:1px solid #8b95a4;padding-top:7px;text-align:center;font-size:9px;color:#586477;min-height:45px}
-      .print-footer{border-top:1px solid #dfe4eb;margin-top:18px;padding-top:7px;display:flex;justify-content:space-between;font-size:8px;color:#8993a2}
+      .print-footer{position:fixed;left:0;right:0;bottom:0;border-top:1px solid #dfe4eb;margin:0;padding-top:6px;display:flex;justify-content:space-between;font-size:8px;color:#8993a2;background:#fff}
       .print-empty{padding:18px;text-align:center;border:1px solid #dfe4eb;color:#758095}
     }
 
