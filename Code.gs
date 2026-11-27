@@ -36,6 +36,12 @@ function doGet(e) {
       case "saveAttendance":
         result = saveAttendance(payload);
         break;
+      case "updateAttendance":
+        result = updateAttendance(payload);
+        break;
+      case "deleteAttendance":
+        result = deleteAttendance(payload);
+        break;
       case "getAttendanceHistory":
         result = getAttendanceHistory(payload);
         break;
@@ -215,12 +221,76 @@ function saveAttendance(payload) {
     ];
 
     if (targetRow > 0) {
+      if (date !== getToday_()) {
+        throw new Error("Modification refusée : seuls les pointages du jour peuvent être modifiés.");
+      }
       sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
-      return { success: true, action: "updated", message: "Le pointage existant a été mis à jour." };
+      return { success: true, action: "updated", message: "Le pointage du jour a été mis à jour." };
     }
 
     sheet.appendRow(row);
     return { success: true, action: "created", message: "Pointage enregistré avec succès." };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Modifier le statut d'un pointage : uniquement pour la date du jour.
+ * La règle est vérifiée côté serveur, pas seulement dans l'interface.
+ */
+function updateAttendance(payload) {
+  payload = payload || {};
+  const matricule = String(payload.matricule || "").trim();
+  const date = normalizeDate_(payload.date || "");
+  const status = String(payload.statut || "").trim().toUpperCase();
+  if (!matricule || !date) throw new Error("Matricule et date obligatoires.");
+  if (date !== getToday_()) throw new Error("Modification refusée : seuls les pointages du jour sont modifiables.");
+  if (["ABS", "IMP", "OK"].indexOf(status) === -1) throw new Error("Statut invalide.");
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = ensureAttendanceSheet_();
+    const values = sheet.getDataRange().getDisplayValues();
+    for (let i = 1; i < values.length; i++) {
+      if (normalizeDate_(values[i][0]) === date && String(values[i][1] || "").trim() === matricule) {
+        const rowNumber = i + 1;
+        const now = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy-MM-dd HH:mm:ss");
+        let user = "";
+        try { user = Session.getActiveUser().getEmail() || ""; } catch (ignore) {}
+        sheet.getRange(rowNumber, 7).setValue(status);
+        sheet.getRange(rowNumber, 8).setValue(now);
+        sheet.getRange(rowNumber, 9).setValue(user);
+        return { success: true, message: "Le pointage du jour a été modifié avec succès." };
+      }
+    }
+    throw new Error("Pointage du jour introuvable pour ce matricule.");
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Supprimer un pointage : uniquement pour la date du jour. */
+function deleteAttendance(payload) {
+  payload = payload || {};
+  const matricule = String(payload.matricule || "").trim();
+  const date = normalizeDate_(payload.date || "");
+  if (!matricule || !date) throw new Error("Matricule et date obligatoires.");
+  if (date !== getToday_()) throw new Error("Suppression refusée : seuls les pointages du jour sont supprimables.");
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = ensureAttendanceSheet_();
+    const values = sheet.getDataRange().getDisplayValues();
+    for (let i = values.length - 1; i >= 1; i--) {
+      if (normalizeDate_(values[i][0]) === date && String(values[i][1] || "").trim() === matricule) {
+        sheet.deleteRow(i + 1);
+        return { success: true, message: "Le pointage du jour a été supprimé." };
+      }
+    }
+    throw new Error("Pointage du jour introuvable pour ce matricule.");
   } finally {
     lock.releaseLock();
   }
@@ -247,7 +317,8 @@ function getAttendanceHistory(filters) {
       division: row[5],
       statut: row[6],
       modification: row[7],
-      utilisateur: row[8]
+      utilisateur: row[8],
+      modifiable: normalizeDate_(row[0]) === getToday_()
     };
   });
 }
