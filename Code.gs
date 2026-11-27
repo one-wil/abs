@@ -9,8 +9,13 @@ const CONFIG = {
   SPREADSHEET_ID: "1qOPtJiDc8gBTWlqm9-pnUwoqJDC1nClZmIrdpxcLzqU",
   PERSONNEL_SHEET: "Personnel",
   ATTENDANCE_SHEET: "Pointages",
-  TIMEZONE: "Africa/Algiers"
+  TIMEZONE: "Africa/Algiers",
+  SESSIONS_SHEET: "Sessions",
+  TOKEN_TTL_SECONDS: 21600
 };
+
+// Identité de l’utilisateur authentifié pendant l’exécution courante.
+var REQUEST_USER_ = "";
 
 /** Point d'entrée appelé par index.html via JSONP. */
 function doGet(e) {
@@ -26,6 +31,19 @@ function doGet(e) {
     }
 
     let result;
+    // Seules l’authentification initiale et la définition du premier mot de passe
+    // d’une session sont accessibles sans jeton.
+    if (action === "login") {
+      result = login_(payload);
+      return output_(callback, { success: true, result: result });
+    }
+    if (action === "setSessionPassword") {
+      result = setSessionPassword_(payload);
+      return output_(callback, { success: true, result: result });
+    }
+
+    const auth = requireAuth_(payload.authToken);
+    REQUEST_USER_ = auth.name;
     switch (action) {
       case "getPersonnelData":
         result = getPersonnelData();
@@ -49,6 +67,22 @@ function doGet(e) {
         // يجب أن تكون النتيجة مصفوفة مباشرة لأن index.html يعالجها كقائمة.
         result = getReportData(payload);
         break;
+      case "adminListSessions":
+        requireAdmin_(auth);
+        result = adminListSessions_();
+        break;
+      case "adminCreateSession":
+        requireAdmin_(auth);
+        result = adminCreateSession_(payload);
+        break;
+      case "adminDeleteSession":
+        requireAdmin_(auth);
+        result = adminDeleteSession_(payload);
+        break;
+      case "adminResetSessionPassword":
+        requireAdmin_(auth);
+        result = adminResetSessionPassword_(payload);
+        break;
       default:
         throw new Error("Action API inconnue : " + action);
     }
@@ -71,6 +105,160 @@ function output_(callback, data) {
   }
   return ContentService.createTextOutput(json)
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * INITIALISATION ADMIN :
+ * 1) Dans les paramètres du projet Apps Script > Propriétés du script,
+ *    ajouter ADMIN_INITIAL_PASSWORD avec le mot de passe choisi par le propriétaire.
+ * 2) Exécuter une seule fois initializeAdminAccount() depuis l’éditeur.
+ * 3) La propriété temporaire est supprimée après création du hash.
+ */
+function initializeAdminAccount() {
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty("ADMIN_PASSWORD_HASH")) {
+    throw new Error("Le compte ADMIN est déjà initialisé.");
+  }
+  const initialPassword = props.getProperty("ADMIN_INITIAL_PASSWORD");
+  if (!initialPassword || initialPassword.length < 10) {
+    throw new Error("Définissez ADMIN_INITIAL_PASSWORD (10 caractères minimum) dans les propriétés du script.");
+  }
+  const salt = Utilities.getUuid() + Utilities.getUuid();
+  props.setProperties({
+    ADMIN_PASSWORD_SALT: salt,
+    ADMIN_PASSWORD_HASH: passwordHash_(initialPassword, salt)
+  });
+  props.deleteProperty("ADMIN_INITIAL_PASSWORD");
+  return "Compte ADMIN initialisé. Vous pouvez déployer la nouvelle version.";
+}
+
+function passwordHash_(password, salt) {
+  const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(salt) + ":" + String(password), Utilities.Charset.UTF_8);
+  return Utilities.base64Encode(bytes);
+}
+
+function ensureSessionsSheet_() {
+  const ss = getSpreadsheet_();
+  let sh = ss.getSheetByName(CONFIG.SESSIONS_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(CONFIG.SESSIONS_SHEET);
+    sh.appendRow(["Nom de session", "Salt", "PasswordHash", "Statut", "Date création", "Dernière modification"]);
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1, 6).setFontWeight("bold").setBackground("#172554").setFontColor("#ffffff");
+  }
+  return sh;
+}
+
+function issueToken_(name, role) {
+  const token = Utilities.getUuid().replace(/-/g, "") + Utilities.getUuid().replace(/-/g, "");
+  CacheService.getScriptCache().put("AUTH_" + token, JSON.stringify({ name: name, role: role }), CONFIG.TOKEN_TTL_SECONDS);
+  return token;
+}
+
+function requireAuth_(token) {
+  token = String(token || "");
+  if (!token) throw new Error("Session expirée. Veuillez vous reconnecter.");
+  const raw = CacheService.getScriptCache().get("AUTH_" + token);
+  if (!raw) throw new Error("Session expirée. Veuillez vous reconnecter.");
+  const auth = JSON.parse(raw);
+  // Révoque immédiatement l’accès si l’administrateur supprime ou réinitialise la session.
+  if (auth.role === "SESSION") {
+    const rows = ensureSessionsSheet_().getDataRange().getDisplayValues();
+    const active = rows.slice(1).some(r => normalize_(r[0]) === normalize_(auth.name) && String(r[3]).toUpperCase() === "ACTIVE" && !!r[2]);
+    if (!active) throw new Error("Session révoquée ou réinitialisée. Veuillez vous reconnecter.");
+  }
+  return auth;
+}
+
+function requireAdmin_(auth) {
+  if (!auth || auth.role !== "ADMIN" || auth.name !== "ADMIN") throw new Error("Accès réservé à l’administrateur.");
+}
+
+function login_(payload) {
+  const name = String(payload.sessionName || "").trim();
+  const password = String(payload.password || "");
+  if (!name) throw new Error("Nom de session obligatoire.");
+  if (normalize_(name) === "admin") {
+    if (!password) throw new Error("Mot de passe ADMIN obligatoire.");
+    const props = PropertiesService.getScriptProperties();
+    const salt = props.getProperty("ADMIN_PASSWORD_SALT");
+    const hash = props.getProperty("ADMIN_PASSWORD_HASH");
+    if (!salt || !hash) throw new Error("Le compte ADMIN n’est pas encore initialisé. Consultez les instructions de configuration.");
+    if (passwordHash_(password, salt) !== hash) throw new Error("Mot de passe incorrect.");
+    return { token: issueToken_("ADMIN", "ADMIN"), name: "ADMIN", role: "ADMIN" };
+  }
+  const sh = ensureSessionsSheet_();
+  const rows = sh.getDataRange().getDisplayValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (normalize_(rows[i][0]) !== normalize_(name)) continue;
+    if (String(rows[i][3]).toUpperCase() !== "ACTIVE") throw new Error("Cette session est désactivée.");
+    if (!rows[i][2]) return { mustSetPassword: true, sessionName: rows[i][0] };
+    if (passwordHash_(password, rows[i][1]) !== rows[i][2]) throw new Error("Mot de passe incorrect.");
+    return { token: issueToken_(rows[i][0], "SESSION"), name: rows[i][0], role: "SESSION" };
+  }
+  throw new Error("Nom de session introuvable. Contactez l’administrateur.");
+}
+
+function setSessionPassword_(payload) {
+  const name = String(payload.sessionName || "").trim();
+  const password = String(payload.password || "");
+  if (!name || normalize_(name) === "admin") throw new Error("Nom de session invalide.");
+  if (password.length < 8) throw new Error("Le mot de passe doit contenir au moins 8 caractères.");
+  const sh = ensureSessionsSheet_();
+  const rows = sh.getDataRange().getDisplayValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (normalize_(rows[i][0]) !== normalize_(name)) continue;
+    if (String(rows[i][3]).toUpperCase() !== "ACTIVE") throw new Error("Cette session est désactivée.");
+    if (rows[i][2]) throw new Error("Le mot de passe est déjà défini. Connectez-vous normalement ou contactez l’administrateur pour le réinitialiser.");
+    const salt = Utilities.getUuid() + Utilities.getUuid();
+    const now = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy-MM-dd HH:mm:ss");
+    sh.getRange(i + 1, 2, 1, 5).setValues([[salt, passwordHash_(password, salt), "ACTIVE", rows[i][4] || now, now]]);
+    return { token: issueToken_(rows[i][0], "SESSION"), name: rows[i][0], role: "SESSION" };
+  }
+  throw new Error("Nom de session introuvable. Contactez l’administrateur.");
+}
+
+function adminListSessions_() {
+  const rows = ensureSessionsSheet_().getDataRange().getDisplayValues();
+  return rows.slice(1).filter(r => r[0]).map(r => ({ name: r[0], status: r[3] || "ACTIVE", passwordSet: !!r[2], createdAt: r[4] || "" }));
+}
+
+function adminCreateSession_(payload) {
+  const name = String(payload.sessionName || "").trim();
+  if (!name || name.length > 80 || normalize_(name) === "admin") throw new Error("Nom de session invalide (1 à 80 caractères). ADMIN est réservé.");
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    const sh = ensureSessionsSheet_();
+    const rows = sh.getDataRange().getDisplayValues();
+    if (rows.slice(1).some(r => normalize_(r[0]) === normalize_(name))) throw new Error("Cette session existe déjà.");
+    const now = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy-MM-dd HH:mm:ss");
+    sh.appendRow([name, "", "", "ACTIVE", now, now]);
+    return { message: "Session créée. Son titulaire pourra choisir son mot de passe à la première connexion." };
+  } finally { lock.releaseLock(); }
+}
+
+function adminDeleteSession_(payload) {
+  const name = String(payload.sessionName || "").trim();
+  if (!name || normalize_(name) === "admin") throw new Error("Le compte ADMIN ne peut pas être supprimé.");
+  const sh = ensureSessionsSheet_(); const rows = sh.getDataRange().getDisplayValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (normalize_(rows[i][0]) === normalize_(name)) { sh.deleteRow(i + 1); return { message: "Session supprimée." }; }
+  }
+  throw new Error("Session introuvable.");
+}
+
+function adminResetSessionPassword_(payload) {
+  const name = String(payload.sessionName || "").trim();
+  if (!name || normalize_(name) === "admin") throw new Error("Nom de session invalide.");
+  const sh = ensureSessionsSheet_(); const rows = sh.getDataRange().getDisplayValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (normalize_(rows[i][0]) === normalize_(name)) {
+      const now = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy-MM-dd HH:mm:ss");
+      sh.getRange(i + 1, 2, 1, 5).setValues([["", "", "ACTIVE", rows[i][4] || now, now]]);
+      return { message: "Mot de passe réinitialisé. Le titulaire devra en choisir un nouveau." };
+    }
+  }
+  throw new Error("Session introuvable.");
 }
 
 function getSpreadsheet_() {
@@ -212,8 +400,8 @@ function saveAttendance(payload) {
     }
 
     const now = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy-MM-dd HH:mm:ss");
-    let user = "";
-    try { user = Session.getActiveUser().getEmail() || ""; } catch (ignore) {}
+    let user = REQUEST_USER_ || "";
+    if (!user) { try { user = Session.getActiveUser().getEmail() || ""; } catch (ignore) {} }
 
     const row = [
       date, employee.matricule, employee.nomPrenom, employee.fonction,
@@ -257,8 +445,8 @@ function updateAttendance(payload) {
       if (normalizeDate_(values[i][0]) === date && String(values[i][1] || "").trim() === matricule) {
         const rowNumber = i + 1;
         const now = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy-MM-dd HH:mm:ss");
-        let user = "";
-        try { user = Session.getActiveUser().getEmail() || ""; } catch (ignore) {}
+        let user = REQUEST_USER_ || "";
+        if (!user) { try { user = Session.getActiveUser().getEmail() || ""; } catch (ignore) {} }
         sheet.getRange(rowNumber, 7).setValue(status);
         sheet.getRange(rowNumber, 8).setValue(now);
         sheet.getRange(rowNumber, 9).setValue(user);
