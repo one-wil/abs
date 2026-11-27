@@ -25,6 +25,18 @@
     .employee-card{border:1px solid #e7ebf1;background:#f9fafc;border-radius:12px;padding:14px;margin:5px 0 17px;display:none}.employee-card.show{display:block;animation:rise .25s ease}.employee-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:13px}.employee-top strong{font:800 13px Manrope;color:var(--navy)}.verified{font-size:10px;color:var(--green);font-weight:700}.employee-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.employee-fields span{display:block;color:#8b95a4;font-size:9px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}.employee-fields b{font-size:12px;color:#344158}
     .status-title{font-size:11px;font-weight:700;color:#647086;margin:8px 0 10px}.status-options{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.status-option input{display:none}.status-option label{border:1px solid var(--line);border-radius:11px;padding:13px 10px;text-align:center;cursor:pointer;margin:0;background:#fff;transition:.2s}.status-option label b{display:block;font:800 17px Manrope}.status-option label span{display:block;font-size:10px;margin-top:4px;font-weight:500}.status-option.abs label{color:var(--red)}.status-option.imp label{color:var(--amber)}.status-option.ok label{color:var(--green)}.status-option input:checked+label{box-shadow:0 0 0 2px currentColor inset;background:#fafbfc}.status-option.abs input:checked+label{background:#fff5f5}.status-option.imp input:checked+label{background:#fffbf1}.status-option.ok input:checked+label{background:#f2fbf7}
     .save-row{display:flex;gap:10px;margin-top:20px}.save-row .btn-primary{flex:1}.hint{font-size:10px;color:#9aa3b1;line-height:1.6;margin-top:13px}.side-panel .panel-body{padding:18px}.quick-line{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid #eef1f5;font-size:12px}.quick-line:last-child{border:0}.quick-line span{color:var(--muted)}.quick-line b{color:var(--navy);font:800 13px Manrope}.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:17px}.legend span{font-size:10px;color:#748094;display:flex;align-items:center;gap:6px}.dot{width:7px;height:7px;border-radius:50%}.history{margin-top:20px}.toolbar{display:flex;gap:8px;align-items:center}.toolbar input{width:180px;padding:9px 11px;font-size:11px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:760px}th{text-align:left;padding:12px 15px;background:#fafbfd;color:#8b95a4;font-size:9px;letter-spacing:1px;text-transform:uppercase;font-weight:800}td{padding:13px 15px;border-top:1px solid #f0f2f5;font-size:11px;color:#47546a}td strong{color:#1d2b43}.pill{display:inline-block;padding:5px 9px;border-radius:20px;font-size:9px;font-weight:800}.pill-OK{background:#e9f7f0;color:var(--green)}.pill-ABS{background:#fff0f0;color:var(--red)}.pill-IMP{background:#fff7e5;color:var(--amber)}.empty{text-align:center;padding:35px;color:#9aa3b1;font-size:12px}
+    .row-actions{display:flex;gap:6px;white-space:nowrap}
+    .btn-mini{padding:7px 10px;border-radius:8px;font-size:10px}
+    .btn-edit{background:#edf2f8;color:#203653}
+    .btn-delete{background:#fff0f0;color:#b43c49}
+    .readonly-label{font-size:10px;color:#9aa3b1;font-weight:700}
+    .edit-modal{display:none;position:fixed;inset:0;z-index:10000;background:rgba(10,18,34,.65);padding:18px;align-items:center;justify-content:center}
+    .edit-modal.open{display:flex}
+    .edit-dialog{width:min(100%,420px);background:#fff;border-radius:16px;padding:22px;box-shadow:0 20px 70px rgba(0,0,0,.28)}
+    .edit-dialog h3{margin:0 0 7px;color:#172744;font:800 17px Manrope}
+    .edit-dialog p{margin:0 0 18px;color:#7d8798;font-size:12px;line-height:1.6}
+    .edit-dialog .field{margin-bottom:18px}
+    .edit-actions{display:flex;gap:9px;justify-content:flex-end}
     .toast{position:fixed;right:25px;bottom:25px;background:#172744;color:#fff;padding:14px 18px;border-radius:12px;box-shadow:var(--shadow);font-size:12px;display:none;z-index:20;max-width:360px}.toast.show{display:block;animation:rise .2s ease}.toast.error{background:#9e3540}.loading{opacity:.55;pointer-events:none}.section{display:none}.section.active{display:block}
 
     .preview-modal{display:none;position:fixed;inset:0;z-index:9999;background:rgba(10,18,34,.78);padding:14px;overflow:auto}
@@ -182,7 +194,7 @@
       <div class="panel history">
         <div class="panel-head"><div><h3>Historique des pointages</h3><p>Consultez les enregistrements et filtrez les résultats</p></div><div class="toolbar"><input type="date" id="historyDate"><button class="btn btn-light" onclick="loadHistory()">Filtrer</button></div></div>
         <div class="panel-body" style="padding:14px 18px"><div class="toolbar" style="margin-bottom:12px"><input id="historySearch" placeholder="Matricule, nom, aéroport..." oninput="loadHistory()"><select id="historyStatus" style="width:125px" onchange="loadHistory()"><option value="">Tous les statuts</option><option>OK</option><option>ABS</option><option>IMP</option></select><input id="historyDivision" placeholder="Division" oninput="loadHistory()"></div></div>
-        <div class="table-wrap"><table><thead><tr><th>Date</th><th>Matricule</th><th>Nom et Prénom</th><th>Fonction</th><th>Aéroport</th><th>Division</th><th>Statut</th></tr></thead><tbody id="historyBody"><tr><td colspan="7" class="empty">Chargement des données...</td></tr></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Date</th><th>Matricule</th><th>Nom et Prénom</th><th>Fonction</th><th>Aéroport</th><th>Division</th><th>Statut</th><th>Actions</th></tr></thead><tbody id="historyBody"><tr><td colspan="8" class="empty">Chargement des données...</td></tr></tbody></table></div>
       </div>
     </section>
 
@@ -227,6 +239,24 @@
     <div id="previewContent" class="preview-content"></div>
   </div>
 </div>
+<div id="editAttendanceModal" class="edit-modal" aria-hidden="true">
+  <div class="edit-dialog">
+    <h3>Modifier le pointage du jour</h3>
+    <p id="editAttendanceInfo">Modifiez le statut de cet enregistrement.</p>
+    <div class="field">
+      <label for="editAttendanceStatus">NOUVEAU STATUT</label>
+      <select id="editAttendanceStatus">
+        <option value="OK">OK — Présent</option>
+        <option value="ABS">ABS — Absent</option>
+        <option value="IMP">IMP — Imprévu</option>
+      </select>
+    </div>
+    <div class="edit-actions">
+      <button type="button" class="btn btn-light" onclick="closeEditAttendance()">Annuler</button>
+      <button type="button" class="btn btn-primary" id="confirmEditAttendance" onclick="confirmEditAttendance()">Enregistrer</button>
+    </div>
+  </div>
+</div>
 <div id="printArea" aria-hidden="true"></div>
 <div class="toast" id="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -235,7 +265,7 @@
  * URL de l'application Web Google Apps Script (/exec).
  * Aucun Cloudflare Worker n'est nécessaire : communication JSONP.
  */
-const API_URL = "https://script.google.com/macros/s/AKfycby4LVj26SufUFAXYcA5Md1wKWuFcSSYTcPacVX2qNG5UYiOPjM-wAxvIF6nTUYdw3X2pg/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbx-5wjNZbqDnsn9fNGyHcO29LjbJtEzT9uS14PE5pC8HIB1XB46mgUyXItjzmVneNAJhA/exec";
 
 let employees = [];
 let selectedEmployee = null;
@@ -389,12 +419,81 @@ async function loadHistory(){
   try{
     const rows=await apiRequest("getAttendanceHistory",filters);
     const body=document.getElementById('historyBody');
-    if(!rows.length){
-      body.innerHTML='<tr><td colspan="7" class="empty">Aucun pointage correspondant aux critères.</td></tr>';
+    if(!Array.isArray(rows) || !rows.length){
+      body.innerHTML='<tr><td colspan="8" class="empty">Aucun pointage correspondant aux critères.</td></tr>';
       return;
     }
-    body.innerHTML=rows.map(r=>`<tr><td>${esc(r.date)}</td><td><strong>${esc(r.matricule)}</strong></td><td>${esc(r.nomPrenom)}</td><td>${esc(r.fonction)}</td><td>${esc(r.aeroport)}</td><td>${esc(r.division)}</td><td><span class="pill pill-${esc(r.statut)}">${esc(r.statut)}</span></td></tr>`).join('');
+    body.innerHTML=rows.map(r=>{
+      const canEdit=!!r.modifiable && r.date===isoToday;
+      const actions=canEdit
+        ? `<div class="row-actions">
+             <button class="btn btn-mini btn-edit" data-action="edit" data-date="${esc(r.date)}" data-matricule="${esc(r.matricule)}" data-status="${esc(r.statut)}" data-name="${esc(r.nomPrenom)}">Modifier</button>
+             <button class="btn btn-mini btn-delete" data-action="delete" data-date="${esc(r.date)}" data-matricule="${esc(r.matricule)}" data-name="${esc(r.nomPrenom)}">Supprimer</button>
+           </div>`
+        : '<span class="readonly-label">Lecture seule</span>';
+      return `<tr><td>${esc(r.date)}</td><td><strong>${esc(r.matricule)}</strong></td>
+        <td>${esc(r.nomPrenom)}</td><td>${esc(r.fonction)}</td><td>${esc(r.aeroport)}</td>
+        <td>${esc(r.division)}</td><td><span class="pill pill-${esc(r.statut)}">${esc(r.statut)}</span></td>
+        <td>${actions}</td></tr>`;
+    }).join('');
   }catch(err){fail(err)}
+}
+
+let editingAttendance=null;
+document.getElementById('historyBody').addEventListener('click',async function(event){
+  const button=event.target.closest('button[data-action]');
+  if(!button)return;
+  const record={
+    date:button.dataset.date,
+    matricule:button.dataset.matricule,
+    statut:button.dataset.status||'',
+    nomPrenom:button.dataset.name||''
+  };
+  if(record.date!==isoToday){
+    toast('Les anciens pointages sont en lecture seule.',true);
+    return;
+  }
+  if(button.dataset.action==='edit'){
+    editingAttendance=record;
+    document.getElementById('editAttendanceInfo').textContent=
+      `${record.nomPrenom} — Matricule ${record.matricule} — ${record.date}`;
+    document.getElementById('editAttendanceStatus').value=record.statut;
+    document.getElementById('editAttendanceModal').classList.add('open');
+    document.getElementById('editAttendanceModal').setAttribute('aria-hidden','false');
+  }else if(button.dataset.action==='delete'){
+    if(!confirm(`Confirmer la suppression du pointage du jour de ${record.nomPrenom} (${record.matricule}) ?`))return;
+    button.disabled=true;
+    try{
+      const result=await apiRequest('deleteAttendance',{date:record.date,matricule:record.matricule});
+      toast(result.message||'Pointage supprimé.');
+      await loadHistory();
+      await loadDashboard();
+    }catch(err){fail(err);button.disabled=false}
+  }
+});
+
+function closeEditAttendance(){
+  editingAttendance=null;
+  const modal=document.getElementById('editAttendanceModal');
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden','true');
+}
+async function confirmEditAttendance(){
+  if(!editingAttendance)return;
+  const btn=document.getElementById('confirmEditAttendance');
+  btn.disabled=true;
+  try{
+    const result=await apiRequest('updateAttendance',{
+      date:editingAttendance.date,
+      matricule:editingAttendance.matricule,
+      statut:document.getElementById('editAttendanceStatus').value
+    });
+    closeEditAttendance();
+    toast(result.message||'Pointage modifié.');
+    await loadHistory();
+    await loadDashboard();
+  }catch(err){fail(err)}
+  finally{btn.disabled=false}
 }
 
 function normalizeReportRows(response){
