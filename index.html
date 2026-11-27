@@ -758,7 +758,6 @@ function printReport(previewOnly=false){
     </div>
     <div class="print-report-title">LISTE DES RENTRANTS</div>
     <div class="print-period">Journée du <strong>${esc(dateLabel(from))}</strong></div>
-    <div class="print-filters"><strong>Filtres appliqués :</strong> Division : ${esc(division)} &nbsp; | &nbsp; Aéroport : ${esc(airport)} &nbsp; | &nbsp; Statut : ${esc(status)}</div>
     <div class="print-stats">
       <div class="print-stat"><span>Total des pointages</span><strong>${reportRows.length}</strong></div>
       <div class="print-stat"><span>Présents (OK)</span><strong>${counts.OK} — ${pct(counts.OK)}%</strong></div>
@@ -773,7 +772,7 @@ function printReport(previewOnly=false){
       <div class="print-signature">Vérifié par<br><strong>Responsable hiérarchique</strong></div>
       <div class="print-signature">Approuvé par<br><strong>Chef Division MOG</strong></div>
     </div>
-    <div class="print-footer"><span>Gestion de Présence & Absences — Document généré automatiquement</span><span>Développeur : BENAKRAB Ahcene</span></div>`;
+    <div class="print-footer"><span>Gestion de Présence & Absences — Document généré automatiquement</span><span>BENAKRAB APP</span></div>`;
   area.setAttribute('aria-hidden','false');
   if(previewOnly){
     document.getElementById('previewContent').innerHTML=area.innerHTML;
