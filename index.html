@@ -172,7 +172,7 @@
           <div class="panel-head"><div><h3>Enregistrement journalier</h3><p>Recherchez un agent par son nom ou une partie de son nom</p></div><span class="pill pill-OK">SAISIE RH</span></div>
           <div class="panel-body">
             <div class="field"><label for="attendanceDate">DATE DE POINTAGE</label><input type="date" id="attendanceDate"></div>
-            <div class="field"><label for="employeeSearch">RECHERCHE PAR NOM ET PRÉNOM</label><div class="employee-search-wrap"><input id="employeeSearch" type="search" placeholder="Saisir un nom ou une partie du nom..." autocomplete="off" aria-autocomplete="list" aria-controls="employeeResults"><div id="employeeResults" class="employee-results" role="listbox"></div></div><p class="hint">Saisissez quelques lettres, puis sélectionnez l’agent recherché dans la liste.</p></div>
+            <div class="field"><label for="employeeSearch">RECHERCHE PAR MATRICULE, NOM OU PRÉNOM</label><div class="employee-search-wrap"><input id="employeeSearch" type="search" placeholder="Matricule, nom, prénom ou partie du nom..." autocomplete="off" aria-autocomplete="list" aria-controls="employeeResults"><div id="employeeResults" class="employee-results" role="listbox"></div></div><p class="hint">Saisissez un matricule ou quelques lettres du nom/prénom, puis sélectionnez le bon agent.</p></div>
             <div class="employee-card" id="employeeCard">
               <div class="employee-top"><strong>FICHE AGENT</strong><span class="verified">● AGENT IDENTIFIÉ</span></div>
               <div class="employee-fields">
@@ -378,7 +378,7 @@ async function loadPersonnel(){
 function renderEmployeeResults(matches, query){
   const box=document.getElementById('employeeResults');
   if(!query){box.classList.remove('show');box.innerHTML='';return;}
-  if(!matches.length){box.innerHTML='<div class="employee-results-empty">Aucun agent trouvé avec ce nom.</div>';box.classList.add('show');return;}
+  if(!matches.length){box.innerHTML='<div class="employee-results-empty">Aucun agent trouvé avec ce matricule ou ce nom.</div>';box.classList.add('show');return;}
   box.innerHTML=matches.slice(0,50).map((e,i)=>`<button type="button" class="employee-result" data-index="${i}"><strong>${esc(e.nomPrenom||'Nom non renseigné')}</strong><small>Matricule : ${esc(e.matricule)} · ${esc(e.fonction||'Fonction non renseignée')} · ${esc(e.division||'')}</small></button>`).join('');
   box._matches=matches.slice(0,50);
   box.classList.add('show');
@@ -408,7 +408,7 @@ document.getElementById('employeeSearch').addEventListener('input',async functio
     try{
       await loadPersonnel();
       const q=normalizeName(query);
-      const matches=employees.filter(e=>normalizeName(e.nomPrenom).includes(q));
+      const matches=employees.filter(e=>normalizeName(e.nomPrenom).includes(q) || normalizeName(e.matricule).includes(q));
       renderEmployeeResults(matches,query);
     }catch(err){fail(err)}
   },180);
@@ -442,8 +442,13 @@ async function saveRecord(){
     toast(res.message);
     await loadDashboard();
     await loadHistory();
+    // Après un enregistrement réussi, vider le formulaire pour le prochain agent.
+    resetForm();
   }catch(err){fail(err)}
-  finally{btn.disabled=false;btn.textContent='Enregistrer le pointage'}
+  finally{
+    btn.textContent='Enregistrer le pointage';
+    btn.disabled=!selectedEmployee;
+  }
 }
 
 function resetForm(){
