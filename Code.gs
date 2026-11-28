@@ -52,12 +52,15 @@ function doGet(e) {
         result = getDashboard(payload.date);
         break;
       case "saveAttendance":
+        requireCanWrite_(auth);
         result = saveAttendance(payload);
         break;
       case "updateAttendance":
+        requireCanWrite_(auth);
         result = updateAttendance(payload);
         break;
       case "deleteAttendance":
+        requireCanWrite_(auth);
         result = deleteAttendance(payload);
         break;
       case "getAttendanceHistory":
@@ -82,6 +85,10 @@ function doGet(e) {
       case "adminResetSessionPassword":
         requireAdmin_(auth);
         result = adminResetSessionPassword_(payload);
+        break;
+      case "adminSetSessionWritePermission":
+        requireAdmin_(auth);
+        result = adminSetSessionWritePermission_(payload);
         break;
       default:
         throw new Error("Action API inconnue : " + action);
@@ -144,7 +151,16 @@ function ensureSessionsSheet_() {
     sh = ss.insertSheet(CONFIG.SESSIONS_SHEET);
     sh.appendRow(["Nom de session", "Salt", "PasswordHash", "Statut", "Date création", "Dernière modification"]);
     sh.setFrozenRows(1);
-    sh.getRange(1, 1, 1, 6).setFontWeight("bold").setBackground("#172554").setFontColor("#ffffff");
+    sh.getRange(1, 1, 1, 7).setFontWeight("bold").setBackground("#172554").setFontColor("#ffffff");
+  }
+  // Migration douce : ajouter la colonne de permission sans toucher aux comptes existants.
+  if (sh.getLastColumn() < 7) sh.getRange(1, 7).setValue("Autorisation de saisie");
+  else if (!sh.getRange(1, 7).getDisplayValue()) sh.getRange(1, 7).setValue("Autorisation de saisie");
+  sh.getRange(1, 1, 1, 7).setFontWeight("bold").setBackground("#172554").setFontColor("#ffffff");
+  const last = sh.getLastRow();
+  if (last >= 2) {
+    const perms = sh.getRange(2, 7, last - 1, 1).getDisplayValues();
+    perms.forEach((r, i) => { if (!r[0]) sh.getRange(i + 2, 7).setValue("OUI"); });
   }
   return sh;
 }
@@ -168,6 +184,21 @@ function requireAuth_(token) {
     if (!active) throw new Error("Session révoquée ou réinitialisée. Veuillez vous reconnecter.");
   }
   return auth;
+}
+
+function sessionCanWrite_(sessionName) {
+  if (String(sessionName || "").toUpperCase() === "ADMIN") return true;
+  const rows = ensureSessionsSheet_().getDataRange().getDisplayValues();
+  const row = rows.slice(1).find(r => normalize_(r[0]) === normalize_(sessionName));
+  return !!row && String(row[3]).toUpperCase() === "ACTIVE" && String(row[6] || "OUI").toUpperCase() !== "NON";
+}
+
+function requireCanWrite_(auth) {
+  if (auth && auth.role === "ADMIN") return;
+  const rows = ensureSessionsSheet_().getDataRange().getDisplayValues();
+  const row = rows.slice(1).find(r => normalize_(r[0]) === normalize_(auth && auth.name));
+  if (!row || String(row[3]).toUpperCase() !== "ACTIVE") throw new Error("Session inactive.");
+  if (String(row[6] || "OUI").toUpperCase() === "NON") throw new Error("Accès en lecture seule : l’administrateur n’a pas autorisé la saisie pour cette session.");
 }
 
 function requireAdmin_(auth) {
@@ -194,7 +225,7 @@ function login_(payload) {
     if (String(rows[i][3]).toUpperCase() !== "ACTIVE") throw new Error("Cette session est désactivée.");
     if (!rows[i][2]) return { mustSetPassword: true, sessionName: rows[i][0] };
     if (passwordHash_(password, rows[i][1]) !== rows[i][2]) throw new Error("Mot de passe incorrect.");
-    return { token: issueToken_(rows[i][0], "SESSION"), name: rows[i][0], role: "SESSION" };
+    return { token: issueToken_(rows[i][0], "SESSION"), name: rows[i][0], role: "SESSION", canWrite: String(rows[i][6] || "OUI").toUpperCase() !== "NON" };
   }
   throw new Error("Nom de session introuvable. Contactez l’administrateur.");
 }
@@ -213,14 +244,14 @@ function setSessionPassword_(payload) {
     const salt = Utilities.getUuid() + Utilities.getUuid();
     const now = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy-MM-dd HH:mm:ss");
     sh.getRange(i + 1, 2, 1, 5).setValues([[salt, passwordHash_(password, salt), "ACTIVE", rows[i][4] || now, now]]);
-    return { token: issueToken_(rows[i][0], "SESSION"), name: rows[i][0], role: "SESSION" };
+    return { token: issueToken_(rows[i][0], "SESSION"), name: rows[i][0], role: "SESSION", canWrite: String(rows[i][6] || "OUI").toUpperCase() !== "NON" };
   }
   throw new Error("Nom de session introuvable. Contactez l’administrateur.");
 }
 
 function adminListSessions_() {
   const rows = ensureSessionsSheet_().getDataRange().getDisplayValues();
-  return rows.slice(1).filter(r => r[0]).map(r => ({ name: r[0], status: r[3] || "ACTIVE", passwordSet: !!r[2], createdAt: r[4] || "" }));
+  return rows.slice(1).filter(r => r[0]).map(r => ({ name: r[0], status: r[3] || "ACTIVE", passwordSet: !!r[2], createdAt: r[4] || "", canWrite: String(r[6] || "OUI").toUpperCase() !== "NON" }));
 }
 
 function adminCreateSession_(payload) {
@@ -232,9 +263,25 @@ function adminCreateSession_(payload) {
     const rows = sh.getDataRange().getDisplayValues();
     if (rows.slice(1).some(r => normalize_(r[0]) === normalize_(name))) throw new Error("Cette session existe déjà.");
     const now = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy-MM-dd HH:mm:ss");
-    sh.appendRow([name, "", "", "ACTIVE", now, now]);
+    const canWrite = payload.canWrite === false;
+    sh.appendRow([name, "", "", "ACTIVE", now, now, canWrite ? "NON" : "OUI"]);
     return { message: "Session créée. Son titulaire pourra choisir son mot de passe à la première connexion." };
   } finally { lock.releaseLock(); }
+}
+
+function adminSetSessionWritePermission_(payload) {
+  const name = String(payload.sessionName || "").trim();
+  if (!name || normalize_(name) === "admin") throw new Error("Nom de session invalide.");
+  const sh = ensureSessionsSheet_();
+  const rows = sh.getDataRange().getDisplayValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (normalize_(rows[i][0]) === normalize_(name)) {
+      const canWrite = payload.canWrite === true;
+      sh.getRange(i + 1, 7).setValue(canWrite ? "OUI" : "NON");
+      return { message: canWrite ? "Saisie activée pour cette session." : "Session passée en lecture seule." };
+    }
+  }
+  throw new Error("Session introuvable.");
 }
 
 function adminDeleteSession_(payload) {
@@ -412,6 +459,10 @@ function saveAttendance(payload) {
       if (date !== getToday_()) {
         throw new Error("Modification refusée : seuls les pointages du jour peuvent être modifiés.");
       }
+      const owner = String(values[targetRow - 1][8] || "").trim();
+      if (REQUEST_USER_ !== "ADMIN" && owner !== REQUEST_USER_) {
+        throw new Error("Modification refusée : seul le titulaire de la session ayant enregistré ce pointage ou ADMIN peut le modifier.");
+      }
       sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
       return { success: true, action: "updated", message: "Le pointage du jour a été mis à jour." };
     }
@@ -443,6 +494,10 @@ function updateAttendance(payload) {
     const values = sheet.getDataRange().getDisplayValues();
     for (let i = 1; i < values.length; i++) {
       if (normalizeDate_(values[i][0]) === date && String(values[i][1] || "").trim() === matricule) {
+        const owner = String(values[i][8] || "").trim();
+        if (REQUEST_USER_ !== "ADMIN" && owner !== REQUEST_USER_) {
+          throw new Error("Modification refusée : seul le titulaire de la session ayant enregistré ce pointage ou ADMIN peut le modifier.");
+        }
         const rowNumber = i + 1;
         const now = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy-MM-dd HH:mm:ss");
         let user = REQUEST_USER_ || "";
@@ -474,6 +529,10 @@ function deleteAttendance(payload) {
     const values = sheet.getDataRange().getDisplayValues();
     for (let i = values.length - 1; i >= 1; i--) {
       if (normalizeDate_(values[i][0]) === date && String(values[i][1] || "").trim() === matricule) {
+        const owner = String(values[i][8] || "").trim();
+        if (REQUEST_USER_ !== "ADMIN" && owner !== REQUEST_USER_) {
+          throw new Error("Suppression refusée : seul le titulaire de la session ayant enregistré ce pointage ou ADMIN peut le supprimer.");
+        }
         sheet.deleteRow(i + 1);
         return { success: true, message: "Le pointage du jour a été supprimé." };
       }
@@ -506,7 +565,7 @@ function getAttendanceHistory(filters) {
       statut: row[6],
       modification: row[7],
       utilisateur: row[8],
-      modifiable: normalizeDate_(row[0]) === getToday_()
+      modifiable: normalizeDate_(row[0]) === getToday_() && (REQUEST_USER_ === "ADMIN" || (sessionCanWrite_(REQUEST_USER_) && String(row[8] || "").trim() === REQUEST_USER_))
     };
   });
 }
@@ -547,9 +606,7 @@ function getReportData(filters) {
       fonction: String(row[3] || ""),
       aeroport: String(row[4] || ""),
       division: String(row[5] || ""),
-      statut: rowStatus,
-      dateHeure: String(row[7] || ""),
-      session: String(row[8] || "")
+      statut: rowStatus
     });
   }
 
