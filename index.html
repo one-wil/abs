@@ -211,7 +211,7 @@
       <div class="panel history">
         <div class="panel-head"><div><h3>Historique des pointages</h3><p>Consultez les enregistrements et filtrez les résultats</p></div><div class="toolbar"><input type="date" id="historyDate"><button class="btn btn-light" onclick="loadHistory()">Filtrer</button></div></div>
         <div class="panel-body" style="padding:14px 18px"><div class="toolbar" style="margin-bottom:12px"><input id="historySearch" placeholder="Matricule, nom, aéroport..." oninput="loadHistory()"><select id="historyStatus" style="width:125px" onchange="loadHistory()"><option value="">Tous les statuts</option><option>OK</option><option>IMP</option></select><input id="historyDivision" placeholder="Division" oninput="loadHistory()"></div></div>
-        <div class="table-wrap"><table><thead><tr><th>N°</th><th>Date</th><th>Matricule</th><th>Nom et Prénom</th><th>Fonction</th><th>Aéroport</th><th>Division</th><th>Statut</th><th>Actions</th></tr></thead><tbody id="historyBody"><tr><td colspan="9" class="empty">Chargement des données...</td></tr></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>N°</th><th>Matricule</th><th>Nom et Prénom</th><th>Aéroport</th><th>Division</th><th>Statut</th><th>Actions</th></tr></thead><tbody id="historyBody"><tr><td colspan="7" class="empty">Chargement des données...</td></tr></tbody></table></div>
       </div>
     </section>
 
@@ -238,7 +238,7 @@
           </div>
           <p class="hint" id="reportInfo">Choisissez une période puis cliquez sur « Générer le rapport ».</p>
         </div>
-        <div class="table-wrap"><table><thead><tr><th>N°</th><th>Date</th><th>Matricule</th><th>Nom et Prénom</th><th>Aéroport</th><th>Division</th><th>Statut</th><th>Date et heure de saisie / modification</th><th>Session</th></tr></thead><tbody id="reportBody"><tr><td colspan="8" class="empty">Aucun rapport généré.</td></tr></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>N°</th><th>Date</th><th>Matricule</th><th>Nom et Prénom</th><th>Aéroport</th><th>Division</th><th>Statut</th><th>Date et heure de saisie</th><th>Session</th></tr></thead><tbody id="reportBody"><tr><td colspan="8" class="empty">Aucun rapport généré.</td></tr></tbody></table></div>
       </div>
     </section>
 <section class="section" id="sessions">
@@ -597,7 +597,7 @@ async function loadHistory(){
     const rows=(Array.isArray(responseRows)?responseRows:[]).filter(r=>String(r.statut||'').toUpperCase()!=='ABS');
     const body=document.getElementById('historyBody');
     if(!Array.isArray(rows) || !rows.length){
-      body.innerHTML='<tr><td colspan="9" class="empty">Aucun pointage correspondant aux critères.</td></tr>';
+      body.innerHTML='<tr><td colspan="7" class="empty">Aucun pointage correspondant aux critères.</td></tr>';
       return;
     }
     body.innerHTML=rows.map((r,index)=>{
@@ -608,8 +608,8 @@ async function loadHistory(){
              <button class="btn btn-mini btn-delete" data-action="delete" data-date="${esc(r.date)}" data-matricule="${esc(r.matricule)}" data-name="${esc(r.nomPrenom)}">Supprimer</button>
            </div>`
         : '<span class="readonly-label">Lecture seule</span>';
-      return `<tr><td>${index+1}</td><td>${esc(r.date)}</td><td><strong>${esc(r.matricule)}</strong></td>
-        <td>${esc(r.nomPrenom)}</td><td>${esc(r.fonction)}</td><td>${esc(r.aeroport)}</td>
+      return `<tr><td>${index+1}</td><td><strong>${esc(r.matricule)}</strong></td>
+        <td>${esc(r.nomPrenom)}</td><td>${esc(r.aeroport)}</td>
         <td>${esc(r.division)}</td><td><span class="pill pill-${esc(r.statut)}">${esc(r.statut)}</span></td>
         <td>${actions}</td></tr>`;
     }).join('');
@@ -766,7 +766,7 @@ function printReport(previewOnly=false){
         <div class="print-stat"><span>Imprévus (IMP)</span><strong>${counts.IMP} — ${pct(counts.IMP)}%</strong></div>
     </div>
     <table class="print-table">
-      <thead><tr><th>N°</th><th>Matricule</th><th>Nom et Prénom</th><th>Aéroport</th><th>Division</th><th>Statut</th><th>Date et heure de saisie / modification</th><th>Session</th></tr></thead>
+      <thead><tr><th>N°</th><th>Matricule</th><th>Nom et Prénom</th><th>Aéroport</th><th>Division</th><th>Statut</th><th>Date et heure de saisie</th><th>Session</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     <div class="print-signatures">
