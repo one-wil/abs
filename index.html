@@ -238,7 +238,7 @@
           </div>
           <p class="hint" id="reportInfo">Choisissez une période puis cliquez sur « Générer le rapport ».</p>
         </div>
-        <div class="table-wrap"><table><thead><tr><th>N°</th><th>Date</th><th>Matricule</th><th>Nom et Prénom</th><th>Fonction</th><th>Aéroport</th><th>Division</th><th>Statut</th></tr></thead><tbody id="reportBody"><tr><td colspan="8" class="empty">Aucun rapport généré.</td></tr></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>N°</th><th>Date</th><th>Matricule</th><th>Nom et Prénom</th><th>Aéroport</th><th>Division</th><th>Statut</th><th>Date et heure de saisie / modification</th><th>Session</th></tr></thead><tbody id="reportBody"><tr><td colspan="8" class="empty">Aucun rapport généré.</td></tr></tbody></table></div>
       </div>
     </section>
 <section class="section" id="sessions">
@@ -313,7 +313,7 @@
  * URL de l'application Web Google Apps Script (/exec).
  * Aucun Cloudflare Worker n'est nécessaire : communication JSONP.
  */
-const API_URL = "https://script.google.com/macros/s/AKfycbzrd9IJR0hPtKK-wfL6OhVKhBoX5ACCJ5WzX07MVvUbIA-w6IVy7Fo5KM5oweS_eHDFvw/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzQ1ySjOVpp9mlk0S8jms_EYfZnYFRfJO8AZxA_uVkIM9VGtKl_n1FIA0zMaM0WmMxjjw/exec";
 
 let authToken = sessionStorage.getItem('presenceAuthToken') || '';
 let currentSession = sessionStorage.getItem('presenceSessionName') || '';
@@ -736,10 +736,11 @@ function printReport(previewOnly=false){
   };
   const rows=reportRows.map((r,i)=>`
     <tr>
-      <td>${i+1}</td><td>${esc(dateLabel(r.date))}</td><td>${esc(r.matricule)}</td>
-      <td>${esc(r.nomPrenom)}</td><td>${esc(r.fonction)}</td>
+      <td>${i+1}</td><td>${esc(r.matricule)}</td><td>${esc(r.nomPrenom)}</td>
       <td>${esc(r.aeroport)}</td><td>${esc(r.division)}</td>
       <td class="print-status">${esc(String(r.statut||'').toUpperCase())}</td>
+      <td>${esc(r.dateHeure || r.derniereModification || '—')}</td>
+      <td>${esc(r.session || r.utilisateur || '—')}</td>
     </tr>`).join('');
   const now=new Date().toLocaleString('fr-FR');
   const area=document.getElementById('printArea');
@@ -765,7 +766,7 @@ function printReport(previewOnly=false){
         <div class="print-stat"><span>Imprévus (IMP)</span><strong>${counts.IMP} — ${pct(counts.IMP)}%</strong></div>
     </div>
     <table class="print-table">
-      <thead><tr><th>N°</th><th>Date</th><th>Matricule</th><th>Nom et Prénom</th><th>Fonction</th><th>Aéroport</th><th>Division</th><th>Statut</th></tr></thead>
+      <thead><tr><th>N°</th><th>Matricule</th><th>Nom et Prénom</th><th>Aéroport</th><th>Division</th><th>Statut</th><th>Date et heure de saisie / modification</th><th>Session</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     <div class="print-signatures">
