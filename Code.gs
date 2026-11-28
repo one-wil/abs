@@ -547,7 +547,9 @@ function getReportData(filters) {
       fonction: String(row[3] || ""),
       aeroport: String(row[4] || ""),
       division: String(row[5] || ""),
-      statut: rowStatus
+      statut: rowStatus,
+      dateHeure: String(row[7] || ""),
+      session: String(row[8] || "")
     });
   }
 
