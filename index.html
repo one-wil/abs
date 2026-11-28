@@ -247,11 +247,12 @@
         <div class="panel-body">
           <div class="form-row" style="align-items:end">
             <div class="field" style="margin:0"><label for="newSessionName">NOM DE LA NOUVELLE SESSION</label><input id="newSessionName" placeholder="Ex. Session In Amenas"></div>
+            <div class="field" style="margin:0"><label for="newSessionWrite">AUTORISATION DE SAISIE</label><select id="newSessionWrite"><option value="yes">Activée — saisie autorisée</option><option value="no">Désactivée — lecture seule</option></select></div>
             <button class="btn btn-primary" onclick="adminCreateSession()">＋ Créer la session</button>
           </div>
-          <p class="hint">Vous attribuez uniquement le nom. Le titulaire choisira son propre mot de passe lors de sa première connexion.</p>
+          <p class="hint">Choisissez si la session peut saisir les informations ou si elle sera limitée à la consultation. Le titulaire choisira son propre mot de passe lors de sa première connexion.</p>
         </div>
-        <div class="table-wrap"><table class="session-table"><thead><tr><th>Nom de session</th><th>Mot de passe</th><th>Statut</th><th>Actions</th></tr></thead><tbody id="sessionsBody"><tr><td colspan="4" class="empty">Chargement...</td></tr></tbody></table></div>
+        <div class="table-wrap"><table class="session-table"><thead><tr><th>Nom de session</th><th>Mot de passe</th><th>Statut</th><th>Autorisation</th><th>Actions</th></tr></thead><tbody id="sessionsBody"><tr><td colspan="5" class="empty">Chargement...</td></tr></tbody></table></div>
       </div>
     </section>
     </main>
@@ -313,11 +314,12 @@
  * URL de l'application Web Google Apps Script (/exec).
  * Aucun Cloudflare Worker n'est nécessaire : communication JSONP.
  */
-const API_URL = "https://script.google.com/macros/s/AKfycbzQ1ySjOVpp9mlk0S8jms_EYfZnYFRfJO8AZxA_uVkIM9VGtKl_n1FIA0zMaM0WmMxjjw/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzkEccIpWepavNkKDEwbhW4Jcuz7PIkN2bcAgczWNPp1zoSROq6QRtKAd1kpBjheggBBg/exec";
 
 let authToken = sessionStorage.getItem('presenceAuthToken') || '';
 let currentSession = sessionStorage.getItem('presenceSessionName') || '';
 let currentRole = sessionStorage.getItem('presenceRole') || '';
+let currentCanWrite = sessionStorage.getItem('presenceCanWrite') !== 'false';
 let pendingSessionName = '';
 
 let employees = [];
@@ -402,16 +404,28 @@ function apiRequest(action,payload={}){
 function showAuthError(message){const el=document.getElementById('authError');el.textContent=message;el.classList.add('show');}
 function clearAuthState(){
   authToken='';currentSession='';currentRole='';
-  sessionStorage.removeItem('presenceAuthToken');sessionStorage.removeItem('presenceSessionName');sessionStorage.removeItem('presenceRole');
+  sessionStorage.removeItem('presenceAuthToken');sessionStorage.removeItem('presenceSessionName');sessionStorage.removeItem('presenceRole');sessionStorage.removeItem('presenceCanWrite');
   document.querySelector('.shell').classList.remove('authenticated');
   document.getElementById('authScreen').style.display='grid';
   document.getElementById('sessionsNav').style.display='none';
 }
+function applyWritePermissionUI(){
+  const readOnly=currentRole!=='ADMIN'&&!currentCanWrite;
+  const old=document.getElementById('readOnlyNotice');if(old)old.remove();
+  if(readOnly){
+    const notice=document.createElement('div');notice.id='readOnlyNotice';notice.className='panel-body';notice.style.cssText='margin:12px 0;background:#fff7e5;border:1px solid #f0d9a6;border-radius:10px;color:#805b17;font-size:12px;font-weight:700';notice.textContent='MODE LECTURE SEULE — La saisie, la modification et la suppression sont désactivées pour cette session.';
+    const section=document.getElementById('saisie');section.insertBefore(notice,section.firstChild);
+  }
+  ['attendanceDate','employeeSearch','stIMP','stOK'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=readOnly;});
+  document.getElementById('saveBtn').disabled=readOnly||!selectedEmployee;
+  const reset= document.querySelector('#saisie .save-row .btn-light');if(reset)reset.disabled=readOnly;
+}
 function finishLogin(result){
-  authToken=result.token;currentSession=result.name;currentRole=result.role;
-  sessionStorage.setItem('presenceAuthToken',authToken);sessionStorage.setItem('presenceSessionName',currentSession);sessionStorage.setItem('presenceRole',currentRole);
+  authToken=result.token;currentSession=result.name;currentRole=result.role;currentCanWrite=currentRole==='ADMIN'||result.canWrite!==false;
+  sessionStorage.setItem('presenceAuthToken',authToken);sessionStorage.setItem('presenceSessionName',currentSession);sessionStorage.setItem('presenceRole',currentRole);sessionStorage.setItem('presenceCanWrite',String(currentCanWrite));
   document.getElementById('activeSessionName').textContent=currentSession;
-  document.getElementById('brandSessionName').textContent='Session : '+currentSession;
+  document.getElementById('brandSessionName').textContent='Session : '+currentSession+(currentCanWrite?'':' · Lecture seule');
+  applyWritePermissionUI();
   document.getElementById('sessionsNav').style.display=currentRole==='ADMIN'?'flex':'none';
   document.getElementById('authScreen').style.display='none';
   document.querySelector('.shell').classList.add('authenticated');
@@ -443,22 +457,27 @@ async function saveFirstSessionPassword(){
 function backToLogin(){pendingSessionName='';document.getElementById('firstPasswordPanel').style.display='none';document.getElementById('loginPanel').style.display='block';document.getElementById('newSessionPassword').value='';document.getElementById('confirmSessionPassword').value='';document.getElementById('authError').classList.remove('show');}
 function logout(){clearAuthState();document.getElementById('loginPassword').value='';backToLogin();}
 async function adminRefreshSessions(){
-  const body=document.getElementById('sessionsBody');body.innerHTML='<tr><td colspan="4" class="empty">Chargement...</td></tr>';
+  const body=document.getElementById('sessionsBody');body.innerHTML='<tr><td colspan="5" class="empty">Chargement...</td></tr>';
   try{
     const rows=await apiRequest('adminListSessions');
-    body.innerHTML=rows.length?rows.map(row=>`<tr><td><strong>${esc(row.name)}</strong></td><td>${row.passwordSet?'Défini':'À choisir à la première connexion'}</td><td><span class="pill pill-OK">${esc(row.status)}</span></td><td><div class="admin-actions"><button class="btn btn-mini btn-edit" data-session-action="reset" data-session-name="${esc(row.name)}">Réinitialiser MDP</button><button class="btn btn-mini btn-delete" data-session-action="delete" data-session-name="${esc(row.name)}">Supprimer</button></div></td></tr>`).join(''):'<tr><td colspan="4" class="empty">Aucune session créée.</td></tr>';
-  }catch(err){body.innerHTML=`<tr><td colspan="4" class="empty">${esc(err.message)}</td></tr>`;}
+    body.innerHTML=rows.length?rows.map(row=>`<tr><td><strong>${esc(row.name)}</strong></td><td>${row.passwordSet?'Défini':'À choisir à la première connexion'}</td><td><span class="pill pill-OK">${esc(row.status)}</span></td><td><span class="pill ${row.canWrite?'pill-OK':'pill-IMP'}">${row.canWrite?'Saisie activée':'Lecture seule'}</span></td><td><div class="admin-actions"><button class="btn btn-mini btn-edit" data-session-action="permission" data-can-write="${row.canWrite?'false':'true'}" data-session-name="${esc(row.name)}">${row.canWrite?'Désactiver saisie':'Activer saisie'}</button><button class="btn btn-mini btn-edit" data-session-action="reset" data-session-name="${esc(row.name)}">Réinitialiser MDP</button><button class="btn btn-mini btn-delete" data-session-action="delete" data-session-name="${esc(row.name)}">Supprimer</button></div></td></tr>`).join(''):'<tr><td colspan="5" class="empty">Aucune session créée.</td></tr>';
+  }catch(err){body.innerHTML=`<tr><td colspan="5" class="empty">${esc(err.message)}</td></tr>`;}
 }
 document.getElementById('sessionsBody').addEventListener('click',event=>{
   const button=event.target.closest('button[data-session-action]');if(!button)return;
   const name=button.dataset.sessionName;
   if(button.dataset.sessionAction==='reset')adminResetSession(name);
+  if(button.dataset.sessionAction==='permission')adminSetSessionPermission(name,button.dataset.canWrite==='true');
   if(button.dataset.sessionAction==='delete')adminDeleteSession(name);
 });
 async function adminCreateSession(){
   const input=document.getElementById('newSessionName');const name=input.value.trim();
   if(!name){toast('Saisissez le nom de la session.',true);return;}
-  try{const result=await apiRequest('adminCreateSession',{sessionName:name});input.value='';toast(result.message);adminRefreshSessions();}
+  try{const canWrite=document.getElementById('newSessionWrite').value==='yes';const result=await apiRequest('adminCreateSession',{sessionName:name,canWrite});input.value='';document.getElementById('newSessionWrite').value='yes';toast(result.message);adminRefreshSessions();}
+  catch(err){fail(err);}
+}
+async function adminSetSessionPermission(name,canWrite){
+  try{const result=await apiRequest('adminSetSessionWritePermission',{sessionName:name,canWrite});toast(result.message);adminRefreshSessions();}
   catch(err){fail(err);}
 }
 async function adminDeleteSession(name){
@@ -508,6 +527,7 @@ function renderEmployeeResults(matches, query){
   box.classList.add('show');
 }
 function selectEmployee(employee){
+  if(currentRole!=='ADMIN'&&!currentCanWrite){toast('Session en lecture seule : saisie non autorisée.',true);return;}
   selectedEmployee=employee;
   document.getElementById('employeeSearch').value=employee.nomPrenom||'';
   document.getElementById('employeeResults').classList.remove('show');
@@ -583,6 +603,7 @@ function resetForm(){
   document.getElementById('employeeCard').classList.remove('show');
   document.querySelectorAll('input[name="statut"]').forEach(x=>x.checked=false);
   document.getElementById('saveBtn').disabled=true;
+  if(currentRole!=='ADMIN'&&!currentCanWrite)applyWritePermissionUI();
 }
 
 async function loadHistory(){
@@ -601,7 +622,7 @@ async function loadHistory(){
       return;
     }
     body.innerHTML=rows.map((r,index)=>{
-      const canEdit=!!r.modifiable && r.date===isoToday;
+      const canEdit=!!r.modifiable;
       const actions=canEdit
         ? `<div class="row-actions">
              <button class="btn btn-mini btn-edit" data-action="edit" data-date="${esc(r.date)}" data-matricule="${esc(r.matricule)}" data-status="${esc(r.statut)}" data-name="${esc(r.nomPrenom)}">Modifier</button>
@@ -819,7 +840,8 @@ document.getElementById('employeeSearch').addEventListener('keydown',e=>{if(e.ke
 document.getElementById('attendanceDate').addEventListener('change',()=>{});
 if(authToken && currentSession && currentRole){
   document.getElementById('activeSessionName').textContent=currentSession;
-  document.getElementById('brandSessionName').textContent='Session : '+currentSession;
+  document.getElementById('brandSessionName').textContent='Session : '+currentSession+(currentCanWrite?'':' · Lecture seule');
+  applyWritePermissionUI();
   document.getElementById('sessionsNav').style.display=currentRole==='ADMIN'?'flex':'none';
   document.getElementById('authScreen').style.display='none';
   document.querySelector('.shell').classList.add('authenticated');
@@ -828,7 +850,7 @@ if(authToken && currentSession && currentRole){
   authToken='';currentSession='';currentRole='';
   sessionStorage.removeItem('presenceAuthToken');
   sessionStorage.removeItem('presenceSessionName');
-  sessionStorage.removeItem('presenceRole');
+  sessionStorage.removeItem('presenceRole');sessionStorage.removeItem('presenceCanWrite');
   document.querySelector('.shell').classList.remove('authenticated');
   document.getElementById('authScreen').style.display='grid';
 }
